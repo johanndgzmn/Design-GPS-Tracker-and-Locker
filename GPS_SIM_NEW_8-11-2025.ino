@@ -8,7 +8,8 @@
  //** SCK - pin 13
  //** CS - pin 4
  
-#include <SoftwareSerial.h>
+// #include <SoftwareSerial.h>
+#include <NeoSWSerial.h>
 #include <TinyGPS++.h>
 #include <SD.h>
 #include <SPI.h>
@@ -33,9 +34,9 @@ const unsigned long LOG_INTERVAL = 120000;
 // GPS print interval (1 second)
 const unsigned long PRINT_INTERVAL = 1000;
 
-TinyGPSPlus gps;,
-SoftwareSerial gpsSerial(GPS_RX, GPS_TX);
-SoftwareSerial simSerial(SIM_RX, SIM_TX);
+TinyGPSPlus gps;
+NeoSWSerial gpsSerial(GPS_RX, GPS_TX);
+NeoSWSerial simSerial(SIM_RX, SIM_TX);
 
 unsigned long lastLogTime = 0;
 unsigned long lastPrintTime = 0;
@@ -200,7 +201,10 @@ void sendGPSviaSMS() {
   simSerial.println("\"");
   delay(100); // small but enough
 
-  simSerial.print(smsText);
+  for (int i = 0; i < smsText.length(); i++) {
+    simSerial.write(smsText[i]);
+    delay(3); // give SIM800L time to process each byte
+  }
   simSerial.write(26); // CTRL+Z
   Serial.println("SMS send command issued.");
 }
@@ -210,10 +214,7 @@ String buildGPSString() {
   String out;
 
   if (hasFix && lastLat != 0.0 && lastLng != 0.0) {
-    out += "Latitude: " + String(lastLat, 6) + "\n";
-    out += "Longitude: " + String(lastLng, 6) + "\n";
-    out += "Altitude: " + String(lastAlt, 3) + " m\n";
-
+    out += "maps.google.com?q=" + String(lastLat, 6) + "," + String(lastLng, 6) + "\n";
     out += "Time: ";
     if (lastHour < 10) out += "0";
     out += String(lastHour) + ":";
@@ -221,9 +222,7 @@ String buildGPSString() {
     out += String(lastMin) + ":";
     if (lastSec < 10) out += "0";
     out += String(lastSec) + "\n";
-
-    out += "Date: " + String(lastMonth) + "/" + String(lastDay) + "/" + String(lastYear) + "\n";
-    out += String("https://www.google.com/maps/place/") + String(lastLat, 6) + "," + String(lastLng, 6);
+    /*out += "Date: " + String(lastMonth) + "-" + String(lastDay) + "-" + String(lastYear) + "\n";*/
   } else {
     out += "No GPS fix yet.\n";
   }
